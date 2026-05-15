@@ -1,0 +1,36 @@
+# External repo (dev server, not needed for reproduction)
+mimaas-server/
+
+# Generated TFLite models (~27 GB) — regenerate with nats2tflite.py
+tflite_models/
+
+# Raw hardware measurement artifacts (~17 GB) — on Zenodo
+artifacts/
+
+# NATS-Bench benchmark data (~3.2 GB) — download from official NATS-Bench release
+benchmarks/
+
+# Internal tracking / intermediate outputs — on Zenodo
+submitted_requests.csv
+export/
+
+# Generated figures — regenerate with plot_from_export.py
+figures/
+figures_export/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+
+# Editor / IDE
+.claude/
+
+# Backup files
+*copy.py
+*copy.csv
+
+# Stray model files in root
+*.tflite

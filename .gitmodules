@@ -1,0 +1,9 @@
+[submodule "mimaas-api"]
+	path = mimaas-api
+	url = https://github.com/thesebsterseb/mimaas-api
+[submodule "NATS-Bench"]
+	path = NATS-Bench
+	url = https://github.com/D-X-Y/NATS-Bench.git
+[submodule "AutoDL-Projects"]
+	path = AutoDL-Projects
+	url = https://github.com/D-X-Y/AutoDL-Projects.git

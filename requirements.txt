@@ -1,0 +1,15 @@
+# --- Figure reproduction only (plot_from_export.py) ---
+matplotlib>=3.7
+numpy>=1.24
+
+# --- Full pipeline (nats2tflite.py, evaluate_nats_models.py, plot_results.py) ---
+tensorflow>=2.15         # Keras model building + TFLite conversion
+nats-bench==1.8          # NATS-Bench TSS API (architecture strings + accuracy lookup)
+requests>=2.25           # HTTP client for MIMaaS API
+
+# --- Architecture verification only (verify_arch.py) ---
+# Also requires AutoDL-Projects/ submodule on sys.path (see README)
+torch>=2.0
+
+# --- MIMaaS client (install separately) ---
+# pip install git+https://github.com/thesebsterseb/mimaas-api
