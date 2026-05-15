@@ -32,39 +32,6 @@ Key findings from the benchmark:
 
 ---
 
-## Quick Start — Reproduce Figures
-
-The figures in the paper can be reproduced from the CSV exports available on Zenodo using only
-`matplotlib` and `numpy`.
-
-```bash
-# 1. Clone the repository
-git clone --recurse-submodules https://github.com/<your-org>/hw-nats-bench.git
-cd hw-nats-bench
-
-# 2. Install minimal dependencies
-pip install matplotlib numpy
-
-# 3. Download the export/ CSVs from Zenodo (see Dataset section below)
-#    and place them in a folder called export/
-
-# 4. Generate all figures
-python plot_from_export.py --data export/ --out figures_export/
-```
-
-The script produces the following files in `figures_export/`:
-
-| Output file | Paper figure | Description |
-|---|---|---|
-| `fig1_deployment_yield.pdf` | Pipeline diagram | Deployment funnel + failure breakdown |
-| `fig2_metric_dists.pdf` | Figure 2 | Hardware metric distributions (latency, ROM, power, energy) |
-| `fig4_metric_scatter.pdf` | Supplemental | Pairwise scatter plots of hardware metrics |
-| `fig5_accuracy_pareto.pdf` | Figure 3 | Accuracy vs. cost Pareto fronts (3×3 grid) |
-| `fig6_per_board_boxplots.pdf` | Supplemental | Per-board boxplots (cross-board consistency check) |
-| `fig7_memory_composition.pdf` | Figure 1 | ROM and RAM composition breakdown |
-| `fig8_arena_utilization.pdf` | Supplemental | Tensor arena utilization distribution |
-
----
 
 ## Repository Layout
 
@@ -238,6 +205,42 @@ python plot_results.py --source local
 rasterised copies.
 
 ---
+
+
+## Reproduce Figures (extended info)
+
+The figures in the paper can be reproduced from the CSV exports available on Zenodo using only
+`matplotlib` and `numpy`.
+
+```bash
+# 1. Clone the repository
+git clone --recurse-submodules https://github.com/<your-org>/hw-nats-bench.git
+cd hw-nats-bench
+
+# 2. Install minimal dependencies
+pip install matplotlib numpy
+
+# 3. Download the export/ CSVs from Zenodo (see Dataset section below)
+#    and place them in a folder called export/
+
+# 4. Generate all figures
+python plot_from_export.py --data export/ --out figures_export/
+```
+
+The script produces the following files in `figures_export/`:
+
+| Output file | Paper figure | Description |
+|---|---|---|
+| `fig1_deployment_yield.pdf` | Pipeline diagram | Deployment funnel + failure breakdown |
+| `fig2_metric_dists.pdf` | Figure 2 | Hardware metric distributions (latency, ROM, power, energy) |
+| `fig4_metric_scatter.pdf` | Supplemental | Pairwise scatter plots of hardware metrics |
+| `fig5_accuracy_pareto.pdf` | Figure 3 | Accuracy vs. cost Pareto fronts (3×3 grid) |
+| `fig6_per_board_boxplots.pdf` | Supplemental | Per-board boxplots (cross-board consistency check) |
+| `fig7_memory_composition.pdf` | Figure 1 | ROM and RAM composition breakdown |
+| `fig8_arena_utilization.pdf` | Supplemental | Tensor arena utilization distribution |
+
+---
+
 
 ## Dataset
 
