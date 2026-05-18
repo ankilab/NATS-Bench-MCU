@@ -1,0 +1,4 @@
+# Minimal requirements for dataset_example.py
+# All stdlib except pyarrow, which is only needed for the parquet → CSV conversion
+# in the `export` command. The `print` command has no dependencies beyond Python 3.8+.
+pyarrow>=10.0
