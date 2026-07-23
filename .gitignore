@@ -34,3 +34,6 @@ __pycache__/
 
 # Stray model files in root
 *.tflite
+
+ # Zenodo files
+ zenodo_upload/
