@@ -286,10 +286,13 @@ def _download_one(request_id, model_name, output_dir):
         client.download_all_artifacts(request_id, zip_path)
     except ResourceNotFoundError as e:
         return (model_name, "not_ready", str(e))
-    os.makedirs(extract_dir, exist_ok=True)
-    with zipfile.ZipFile(zip_path, "r") as zf:
-        zf.extractall(extract_dir)
-    os.remove(zip_path)
+    try:
+        os.makedirs(extract_dir, exist_ok=True)
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            zf.extractall(extract_dir)
+    finally:
+        if os.path.exists(zip_path):
+            os.remove(zip_path)
     return (model_name, "ok", "")
 
 
