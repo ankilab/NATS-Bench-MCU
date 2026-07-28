@@ -17,6 +17,7 @@ stdlib only (+ nats_bench for section 4; section 4 fails soft).
 
 import argparse
 import csv
+import gzip
 import json
 import math
 import os
@@ -28,6 +29,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent
 DEFAULT_ARTIFACTS = REPO_ROOT / "artifacts"
+DEFAULT_CORRECTIONS = REPO_ROOT / "corrections"
 DEFAULT_MANIFEST = REPO_ROOT / "tflite_models" / "manifest.csv"
 DEFAULT_SUBMITTED = REPO_ROOT / "submitted_requests.csv"
 DEFAULT_BENCH = REPO_ROOT / "benchmarks" / "NATS-tss-v1_0-3ffb9-simple"
@@ -196,6 +198,26 @@ def discover_local(artifacts_dir):
             yield idx, entry
 
 
+def discover_corrections(corrections_dir):
+    """Yield (arch_index, Path) for every corrections/XXXXX/ subdir with meta.json.
+
+    Same layout as artifacts/ (one folder per zero-padded arch index). Applied
+    as an authoritative overlay on top of the released artifacts; see the
+    `corrections_iter` argument of build_records() and corrections/README.md.
+    """
+    if not corrections_dir.is_dir():
+        return
+    for entry in sorted(corrections_dir.iterdir()):
+        if not entry.is_dir():
+            continue
+        try:
+            idx = int(entry.name)
+        except ValueError:
+            continue
+        if (entry / "meta.json").is_file():
+            yield idx, entry
+
+
 def discover_server(server_root):
     """Yield (arch_index, Path) for every user_*/request_<id>_<ts>/ folder.
 
@@ -240,6 +262,14 @@ def read_json(path):
     try:
         with open(path) as f:
             return json.load(f)
+    except FileNotFoundError:
+        # Fall back to a gzipped sibling (the server compresses the larger
+        # reports, e.g. ram.json.gz / rom.json.gz, to save space).
+        try:
+            with gzip.open(f"{path}.gz", "rt") as f:
+                return json.load(f)
+        except (OSError, json.JSONDecodeError):
+            return None
     except (OSError, json.JSONDecodeError):
         return None
 
@@ -731,7 +761,63 @@ def section_accuracy(artifact_records, manifest, bench_path):
 
 # ---------- main ----------
 
-def build_records(folder_iter, verbose=False, with_memory=False):
+def _make_record(idx, d, with_memory=False):
+    """Build a single {field: value} record from one artifact folder."""
+    meta = read_json(d / "meta.json") or {}
+    results = read_json(d / "results.json")
+    current = mean_current_from_ppk2(d / "ppk2_summary.csv")
+    if results is not None and current is not None:
+        results = dict(results)
+        results["avg_current_uA"] = current
+    uart = None
+    ram = None
+    rom = None
+    if with_memory and meta.get("status") == "done":
+        uart = parse_uart_log(d / "uart.log")
+        ram = summarize_memory_tree(
+            d / "ram.json",
+            key_symbols={"tensor_arena": "_ZN12_GLOBAL__N_1L12tensor_arenaE"},
+        )
+        rom = summarize_memory_tree(
+            d / "rom.json",
+            key_symbols={"g_model": "g_model"},
+        )
+    try:
+        present = set(os.listdir(d))
+    except OSError:
+        present = set()
+    tflite_name = meta.get("network_file_name") or f"nats_bench_model_{idx:05d}_int8.tflite"
+    has_required = _SUCCESS_REQUIRED | {tflite_name} <= present
+    has_power    = "ppk2_samples.zip" in present or "ppk2_samples.parquet" in present
+    logs_ok      = _SUCCESS_COMPRESSED <= present or _SUCCESS_UNCOMPRESSED <= present
+    complete_success = has_required and has_power and logs_ok
+    complete_failure = FAILURE_ARTIFACT_FILES | {tflite_name} <= present
+    fail_stage, fail_msg, overflow_kb = ("", "", None)
+    if meta.get("status") == "error":
+        fail_stage, fail_msg, overflow_kb = parse_error_log(d / "error.log")
+    return {
+        "meta": meta,
+        "meta_status": meta.get("status", ""),
+        "board": meta.get("board", ""),
+        "request_id": meta.get("request_id"),
+        "submitted_at": meta.get("submitted_at", ""),
+        "folder": str(d),
+        "results": results,
+        "complete_success": complete_success,
+        "complete_failure": complete_failure,
+        # All flash-infeasibility rejections share the single `precheck` label
+        # (the corrected precheck gates on the exact 746 KB flash budget, so
+        # the campaign's later link-stage `flash_failed` cases fold in here).
+        "fail_stage": "precheck" if (fail_stage or "unknown") == "flash_failed" else (fail_stage or "unknown"),
+        "fail_msg": fail_msg,
+        "overflow_kb": overflow_kb,
+        "uart": uart,
+        "ram": ram,
+        "rom": rom,
+    }
+
+
+def build_records(folder_iter, verbose=False, with_memory=False, corrections_iter=None):
     """Build {arch_index: record} from any (idx, Path) iterator.
 
     Handles duplicate indices (e.g. an architecture submitted twice -> two
@@ -742,60 +828,18 @@ def build_records(folder_iter, verbose=False, with_memory=False):
     If with_memory=True, also parses uart.log, ram.json, rom.json for each
     successful record. Adds ~1 min to the scan when running over the full
     server tree but unlocks the memory-layout analysis section.
+
+    corrections_iter, if given, is a second (idx, Path) iterator applied last as
+    an authoritative overlay: each record unconditionally overrides the base
+    record for that index, EXCEPT a folder whose meta.json status is `pending`
+    or `excluded`, which removes the index entirely (used for architectures
+    awaiting a hardware remeasurement). See corrections/README.md for provenance.
     """
     records = {}
     duplicates = 0
     processed = 0
     for idx, d in folder_iter:
-        meta = read_json(d / "meta.json") or {}
-        results = read_json(d / "results.json")
-        current = mean_current_from_ppk2(d / "ppk2_summary.csv")
-        if results is not None and current is not None:
-            results = dict(results)
-            results["avg_current_uA"] = current
-        uart = None
-        ram = None
-        rom = None
-        if with_memory and meta.get("status") == "done":
-            uart = parse_uart_log(d / "uart.log")
-            ram = summarize_memory_tree(
-                d / "ram.json",
-                key_symbols={"tensor_arena": "_ZN12_GLOBAL__N_1L12tensor_arenaE"},
-            )
-            rom = summarize_memory_tree(
-                d / "rom.json",
-                key_symbols={"g_model": "g_model"},
-            )
-        try:
-            present = set(os.listdir(d))
-        except OSError:
-            present = set()
-        tflite_name = meta.get("network_file_name") or f"nats_bench_model_{idx:05d}_int8.tflite"
-        has_required = _SUCCESS_REQUIRED | {tflite_name} <= present
-        has_power    = "ppk2_samples.zip" in present or "ppk2_samples.parquet" in present
-        logs_ok      = _SUCCESS_COMPRESSED <= present or _SUCCESS_UNCOMPRESSED <= present
-        complete_success = has_required and has_power and logs_ok
-        complete_failure = FAILURE_ARTIFACT_FILES | {tflite_name} <= present
-        fail_stage, fail_msg, overflow_kb = ("", "", None)
-        if meta.get("status") == "error":
-            fail_stage, fail_msg, overflow_kb = parse_error_log(d / "error.log")
-        new_rec = {
-            "meta": meta,
-            "meta_status": meta.get("status", ""),
-            "board": meta.get("board", ""),
-            "request_id": meta.get("request_id"),
-            "submitted_at": meta.get("submitted_at", ""),
-            "folder": str(d),
-            "results": results,
-            "complete_success": complete_success,
-            "complete_failure": complete_failure,
-            "fail_stage": "precheck" if (fail_stage or "unknown") == "flash_failed" else (fail_stage or "unknown"),
-            "fail_msg": fail_msg,
-            "overflow_kb": overflow_kb,
-            "uart": uart,
-            "ram": ram,
-            "rom": rom,
-        }
+        new_rec = _make_record(idx, d, with_memory)
         if idx in records:
             duplicates += 1
             old = records[idx]
@@ -815,6 +859,20 @@ def build_records(folder_iter, verbose=False, with_memory=False):
     if duplicates:
         print(f"  note: {duplicates} duplicate submissions of the same architecture were "
               f"collapsed (kept the done/most-recent record per index)")
+
+    if corrections_iter is not None:
+        n_override, n_excluded = 0, 0
+        for idx, d in corrections_iter:
+            meta = read_json(d / "meta.json") or {}
+            if meta.get("status") in ("pending", "excluded"):
+                if records.pop(idx, None) is not None:
+                    n_excluded += 1
+                continue
+            records[idx] = _make_record(idx, d, with_memory)
+            n_override += 1
+        if n_override or n_excluded:
+            print(f"  corrections overlay: {n_override} record(s) overridden, "
+                  f"{n_excluded} index(es) excluded (pending remeasurement)")
     return records
 
 

@@ -1,0 +1,38 @@
+Version 2 — camera-ready corrections (AutoML 2026)
+
+WHAT CHANGED
+------------
+Outcome taxonomy corrected: failures now carry a single, well-defined "infeasible"
+label (flash-infeasible: INT8 flatbuffer + 277.6 KB firmware exceeds the 1 MB app-core
+flash; equivalently, flatbuffer above the 746 KB deployable budget). This replaces the
+earlier export label and resolves the failure-size inconsistencies raised in review.
+
+Counts updated: 14,281 successful / 1,344 infeasible (was 14,279 / 1,346), after:
+  - arch 07650: measurement recovered from the server record (was left pending by a
+    queuing bug and later spuriously rejected); now a completed record.
+  - arch 07651: remeasured on the nRF5340-DK (previously died mid-flash).
+
+HOW TO USE THIS VERSION
+-----------------------
+Most users — the tabular data:
+  Download and extract export.tar.gz. The CSVs already reflect every correction; there
+  is nothing to merge. Start from export/README.md.
+
+Working from the raw per-architecture artifacts:
+  The 16 artifacts_*.tar.gz archives are the unchanged v1 measurements. The 117 corrected
+  records live in the new corrections.tar.gz overlay. Extract the archives and the overlay
+  side by side, then merge them into one fully corrected artifacts/ tree with:
+
+      python corrections/apply_corrections.py            # merges overlay -> artifacts/
+      python corrections/apply_corrections.py --dry-run  # preview the changes first
+
+  The merge is idempotent and preserves each architecture's original INT8 model file.
+  See corrections/README.md for full provenance and the per-architecture rationale.
+
+FILES
+-----
+  - export.tar.gz (updated): regenerated CSVs with the corrected taxonomy, plus
+    int8_rank_correlation.csv / int8_rank_summary.csv (INT8-vs-FP32 ranking study) and
+    nas_baselines_summary.csv (hardware-aware NAS demonstration).
+  - corrections.tar.gz (new): the 117-record overlay + apply_corrections.py + README.
+  - artifacts_*.tar.gz (unchanged from version 1): the raw campaign measurements.

@@ -253,8 +253,11 @@ def fig_metric_dists(hw, out_dir, also_png):
         med, mn = float(np.median(vals)), float(np.mean(vals))
         ax.axvline(med, color=WONG["black"], lw=0.8, ls="--", alpha=0.7)
         ax.axvline(mn,  color=WONG["black"], lw=0.8, ls=":",  alpha=0.7)
-        ax.text(0.97, 0.95, f"N={vals.size:,}\nmedian={med:.2f}\nmean={mn:.2f}",
-                transform=ax.transAxes, ha="right", va="top", fontsize=7.8,
+        # Skewed metrics have empty space top-right; the (centered) mean-power
+        # distribution fills it, so annotate that panel on the left instead.
+        left = (k == "power_mW")
+        ax.text(0.03 if left else 0.97, 0.95, f"N={vals.size:,}\nmedian={med:.2f}\nmean={mn:.2f}",
+                transform=ax.transAxes, ha="left" if left else "right", va="top", fontsize=7.8,
                 bbox=dict(facecolor="white", edgecolor="none", alpha=0.7, pad=1.5))
         ax.set_xlabel(label)
         ax.set_ylabel("# architectures")
@@ -520,6 +523,40 @@ def fig_arena_utilization(hw, out_dir, also_png):
 # Main
 # ---------------------------------------------------------------------------
 
+def fig_flash_threshold(hw, failures, out_dir, also_png):
+    """INT8 size distribution of deployed vs. rejected architectures.
+
+    Draws the exact deployable ceiling at 746 KB (= 1024 KB physical flash − the
+    constant 277.6 KB firmware footprint), which the precheck now enforces. All
+    deployed architectures fall below it and all rejected ones above it, so the
+    two populations separate cleanly with no hidden mid-band.
+    """
+    CEIL = 746.0
+    succ_kb = np.array([r["int8_kb"] for r in hw if r.get("int8_kb")])
+    fail_kb = np.array([r["int8_kb"] for r in failures if r.get("int8_kb")])
+    fig, ax = plt.subplots(figsize=(5.0, 3.0))
+    hi = max(succ_kb.max(), fail_kb.max()) * 1.02
+    bins = np.linspace(0, hi, 60)
+    ax.hist(succ_kb, bins=bins, color=WONG["green"], alpha=0.7,
+            label=f"Deployed ({succ_kb.size:,})", edgecolor="white", linewidth=0.3)
+    ax.hist(fail_kb, bins=bins, color=WONG["orange"], alpha=0.75,
+            label=f"Flash-infeasible ({fail_kb.size:,})", edgecolor="white", linewidth=0.3)
+    ax.axvline(CEIL, color=WONG["black"], lw=1.0, ls="--", zorder=5)
+    ymax = ax.get_ylim()[1]
+    ax.annotate("deployable ceiling 746 KB\n(1024 KB flash - 277.6 KB firmware)",
+                xy=(CEIL, ymax * 0.30), xytext=(1150, ymax * 0.55),
+                fontsize=8.0, color=WONG["black"], ha="center", va="center",
+                arrowprops=dict(arrowstyle="-", color=WONG["black"], lw=0.6,
+                                connectionstyle="arc3,rad=-0.15"))
+    ax.legend(loc="upper right")
+    ax.set_xlabel("INT8 model size [KB]")
+    ax.set_ylabel("# architectures")
+    ax.set_title("INT8 model size vs. deployment outcome", loc="left")
+    ax.grid(axis="y")
+    fig.tight_layout()
+    save(fig, out_dir, "fig3_flash_threshold", also_png)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--data", default="export", type=Path,
@@ -546,6 +583,7 @@ def main():
     print("\nRendering figures:")
     fig_deployment_yield(coverage, failures, args.out, also_png)
     fig_metric_dists(hw, args.out, also_png)
+    fig_flash_threshold(hw, failures, args.out, also_png)
     fig_metric_scatter(hw, args.out, also_png)
     fig_per_board_boxplots(hw, args.out, also_png)
     fig_memory_composition(hw, args.out, also_png)

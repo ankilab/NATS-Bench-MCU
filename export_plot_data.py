@@ -111,7 +111,8 @@ def write_readme(path: Path, n_succ: int, n_fail: int, n_total: int, has_memory:
         "| column | description |",
         "|--------|-------------|",
         "| arch_idx | NATS-Bench TSS index (0-based, zero-padded to 5 digits) |",
-        "| stage | Failure category: `precheck` (flash overflow) or `exception` |",
+        "| stage | Outcome label. All rejections are flash-infeasible and share the "
+        "single `infeasible` label (model + 277.6 KB firmware would exceed the 1024 KB flash). |",
         "| int8_kb | INT8 TFLite model file size [KB] from manifest |",
         "| overflow_kb | Model size reported in precheck error message [KB] (NaN if not available) |",
         "| board | Board that ran the request |",
@@ -191,8 +192,12 @@ def write_readme(path: Path, n_succ: int, n_fail: int, n_total: int, has_memory:
         "- `arch_idx` is the zero-based NATS-Bench TSS index (integer 0–15624).",
         "- RAM is constant at 366.3 KB across all architectures (static tensor arena).",
         "- energy_mJ ≈ power_mW × latency_s (Spearman ρ = 0.999 with measured energy).",
-        "- The precheck cutoff in the server pipeline is 800 KB of INT8 model size;",
-        "  the empirical flash overflow boundary is ~745 KB (total ROM = INT8 + ~278 KB overhead).",
+        "- Flash usage = a constant 277.6 KB firmware footprint + the INT8 model flatbuffer.",
+        "  On the 1024 KB app-core flash this gives a deployable ceiling of 746 KB, which the",
+        "  precheck enforces exactly. (The original campaign used a coarser 800 KB precheck; the",
+        "  115 architectures in the 747-791 KB band passed it and were rejected one stage later at",
+        "  the linker. All are flash-infeasible and are reported here under the single `infeasible`",
+        "  label. See corrections/README.md and the camera-ready change log.)",
         "- NATS-Bench paper global best test accuracies: CIFAR-10 94.37%, CIFAR-100 73.51%,",
         "  ImageNet-16-120 47.31% (hp=200 epochs).",
     ]
@@ -204,6 +209,9 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--source", choices=["local", "server"], default="server")
     p.add_argument("--artifacts", default=str(aa.DEFAULT_ARTIFACTS), type=Path)
+    p.add_argument("--corrections", default=str(aa.DEFAULT_CORRECTIONS), type=Path,
+                   help="Authoritative overlay dir (corrections/) applied on top of the "
+                        "base source; overrides/excludes per-arch records. Pass 'none' to skip.")
     p.add_argument("--server-root", default=str(aa.DEFAULT_SERVER_ROOT), type=Path)
     p.add_argument("--manifest", default=str(aa.DEFAULT_MANIFEST), type=Path)
     p.add_argument("--submitted", default=str(aa.DEFAULT_SUBMITTED), type=Path)
@@ -223,8 +231,14 @@ def main():
 
     folders = aa.discover_local(args.artifacts) if args.source == "local" \
               else aa.discover_server(args.server_root)
+    corrections_iter = None
+    if str(args.corrections).lower() != "none":
+        corrections_iter = aa.discover_corrections(args.corrections)
+        print(f"Corrections overlay: {args.corrections}")
     print("Scanning folders...", flush=True)
-    records = aa.build_records(folders, verbose=args.verbose, with_memory=not args.no_memory)
+    records = aa.build_records(folders, verbose=args.verbose,
+                               with_memory=not args.no_memory,
+                               corrections_iter=corrections_iter)
     print(f"  loaded {len(records):,} records")
 
     # ---- coverage.csv ----
@@ -248,9 +262,12 @@ def main():
         if r["meta_status"] != "error":
             continue
         m = manifest.get(idx, {})
+        # Released outcome label. The raw MIMaaS artifacts use the internal stage
+        # names ("precheck"/"flash_failed"); every one is a flash-infeasibility, so
+        # the released dataset reports the single outcome label "infeasible".
         stage = r["fail_stage"]
-        if stage == "flash_failed":
-            stage = "precheck"
+        if stage in ("flash_failed", "precheck"):
+            stage = "infeasible"
         fail_rows.append({
             "arch_idx": idx,
             "stage": stage,

@@ -1,0 +1,43 @@
+*** Booting Zephyr OS build 3.7.1 ***
+Setting up model...
+
+===== [TFLM] Model Info =====
+[TFLM] Schema version: 3
+[TFLM] Inputs : 1
+[TFLM] Outputs: 1
+[TFLM] Operators: 123
+================================
+
+===== [TFLM] Tensor Arena =====
+[TFLM] Arena address: (nil)
+[TFLM] Arena size   : 358400 bytes
+[TFLM] Used bytes   : 106020 bytes (29%)
+================================
+
+Running inference...
+inference completed successfully
+inference execution time: 3872 ms
+Running inference...
+inference completed successfully
+inference execution time: 3874 ms
+Running inference...
+inference completed successfully
+inference execution time: 3874 ms
+Running inference...
+inference completed successfully
+inference execution time: 3873 ms
+Running inference...
+inference completed successfully
+inference execution time: 3873 ms
+Running inference...
+inference completed successfully
+inference execution time: 3876 ms
+Running inference...
+inference completed successfully
+inference execution time: 3874 ms
+Running inference...
+inference completed successfully
+inference execution time: 3873 ms
+Running inference...
+inference completed successfully
+inference execution time: 3873 ms

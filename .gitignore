@@ -23,7 +23,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.egg-info/
-.venv/
+.venv*/
 
 # Editor / IDE
 .claude/
@@ -35,5 +35,10 @@ __pycache__/
 # Stray model files in root
 *.tflite
 
- # Zenodo files
- zenodo_upload/
+# Stale / root build artifacts
+/export.tar.gz
+int8_run.log
+
+# Zenodo files
+zenodo_upload/
+zenodo_upload_v2/*.tar.gz

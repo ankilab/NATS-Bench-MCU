@@ -1,0 +1,4 @@
+algorithm,final_acc_mean,final_gap_to_oracle_pp,median_evals_to_oracle,wasted_eval_frac
+Random Search,92.834,0.416,169,0.544
+Regularized Evolution,92.81,0.44,110,0.332
+Local Search,92.989,0.261,133,0.378

@@ -1,0 +1,65 @@
+<p>This dataset accompanies the paper <em>"NATS-Bench-MCU: A Tabular Hardware Benchmark for Neural Architecture Search on Microcontrollers"</em> (AutoML 2026). It provides direct, physically measured hardware metrics for all <strong>15,625 architectures</strong> in the NATS-Bench topology search space (TSS), deployed on a <strong>Nordic Semiconductor nRF5340</strong> microcontroller. No values are simulated or estimated. For each deployable architecture, the dataset reports flash and SRAM footprint, inference latency, mean current draw, mean power, and energy per inference, measured with a <strong>Nordic Power Profiler Kit II</strong> at a 100 kHz sampling rate.</p>
+
+<p>Of the 15,625 architectures, <strong>14,281 (91.4&nbsp;%)</strong> were successfully deployed and profiled; <strong>1,344 (8.6&nbsp;%)</strong> are <strong>flash-infeasible</strong> — their INT8 flatbuffer plus the fixed 277.6&nbsp;KB firmware overhead would exceed the 1,024&nbsp;KB (1&nbsp;MB) application-core flash, equivalently a flatbuffer above the 746&nbsp;KB deployable budget — so no on-device metrics can be produced for them.</p>
+
+<h2>What's new in version 2 (camera-ready corrections)</h2>
+<ul>
+  <li><strong>Outcome taxonomy corrected.</strong> All deployment failures now carry a single, well-defined <code>infeasible</code> label (flash-infeasibility, as defined above). This resolves the failure-size inconsistencies raised in peer review.</li>
+  <li><strong>Counts updated to 14,281 successful / 1,344 infeasible</strong> (previously 14,279 / 1,346), after recovering the measurement for architecture <strong>07650</strong> (left <code>pending</code> by a queuing bug and later spuriously rejected) and remeasuring architecture <strong>07651</strong> (which previously died mid-flash).</li>
+  <li><strong>New <code>corrections.tar.gz</code> overlay</strong> documents and applies every post-hoc fix, with full per-architecture provenance. The 16 raw <code>artifacts_*.tar.gz</code> archives are <strong>unchanged from version 1</strong>.</li>
+  <li><strong>Export CSVs regenerated</strong> with the corrected taxonomy, and extended with the INT8-vs-FP32 ranking study and the hardware-aware NAS demonstration reported in the camera-ready paper.</li>
+</ul>
+
+<h2>About the benchmark</h2>
+<p>Hardware-aware neural architecture search depends on benchmarks that expose not only predictive performance, but also the deployment costs of candidate architectures on the target device. Existing tabular NAS benchmarks have enabled reproducible algorithm development at low computational cost, and hardware-aware extensions have added latency and energy measurements for several edge-class platforms. However, microcontroller-class devices remain largely absent from these resources, despite being among the most constrained and practically relevant deployment regimes for Edge AI.</p>
+<p>NATS-Bench-MCU augments the NATS-Bench topology search space with end-to-end measurements on a Nordic nRF5340. In contrast to simulation- or proxy-based hardware costs, all reported on-device metrics are obtained from real deployments through a reproducible firmware, quantization, and measurement pipeline.</p>
+
+<h2>Files</h2>
+
+<h3>export/ — Publication CSVs (6.9 MB total)</h3>
+<p>The primary entry point for most users. Contains all data needed to reproduce the paper's figures and tables. No decompression or special tooling required — plain CSV files readable by any spreadsheet application or by pandas. <strong>These CSVs already reflect every correction in version 2.</strong></p>
+<ul>
+  <li><strong>hw_metrics.csv</strong> (6.1 MB, 14,281 rows) — Core hardware measurements for every successfully deployed architecture: architecture index, cell topology string, INT8 model size, total ROM and RAM usage, inference latency, mean current, mean power, energy per inference, board ID, tensor-arena usage, operator count, and Zephyr memory-report breakdowns by category.</li>
+  <li><strong>accuracies.csv</strong> (668 KB, 14,281 rows) — NATS-Bench test accuracies (CIFAR-10, CIFAR-100, ImageNet-16-120) for each successfully deployed architecture, sourced from the NATS-Bench API under the 200-epoch training protocol.</li>
+  <li><strong>failures.csv</strong> (56 KB, 1,344 rows) — One row per flash-infeasible architecture: index, outcome label (<code>infeasible</code>), INT8 model size, the size reported by the flash-feasibility check, and the board.</li>
+  <li><strong>coverage.csv</strong> (5 rows) — Pipeline funnel: how many architectures reached each stage (converted → submitted → successful / infeasible).</li>
+  <li><strong>int8_rank_correlation.csv</strong> (100 rows) — Per-architecture FP32 vs. INT8 test accuracy for the quantization-ranking study (backs the paper's quantization analysis).</li>
+  <li><strong>int8_rank_summary.csv</strong>, <strong>nas_baselines_summary.csv</strong> — Summary statistics for the quantization-ranking study and the hardware-aware NAS demonstration reported in the paper.</li>
+  <li><strong>README.md</strong> — Column-by-column documentation for the CSVs, including units, measurement method, and a figure-to-column mapping.</li>
+</ul>
+
+<h3>artifacts_XXXXX-YYYYY.tar.gz — Raw measurement archives (≈ 2.3 GB each, ≈ 34 GB total)</h3>
+<p>16 chunked tar.gz archives containing the raw per-architecture output directories for all 15,625 architectures (1,000 per archive, except the last, which holds 625). Each successful architecture directory holds: <code>results.json</code> (aggregated metrics), <code>ppk2_summary.csv</code> (per-inference power summary), <code>ppk2_samples.parquet</code> (raw PPK2 current trace at 100 kHz), <code>uart.log</code> (TFLite Micro runtime log with operator count and tensor-arena usage), <code>rom.json.gz</code> / <code>ram.json.gz</code> (Zephyr memory reports), <code>flash.log.gz</code> (firmware build log), <code>model.cpp.gz</code> (generated C model array), and the INT8 <code>.tflite</code> flatbuffer. Flash-infeasible architectures contain <code>meta.json</code>, <code>error.log</code>, and the <code>.tflite</code> file.</p>
+<p>These archives are the <strong>unchanged version-1 campaign measurements</strong>. The 117 corrected records are provided separately in <code>corrections.tar.gz</code> and can be merged in with a single command (see <em>How to use this version</em>).</p>
+<p>You do <strong>not</strong> need to download all 16 archives — use <code>index.json</code> and <code>dataset_example.py</code> to access a single architecture by downloading only its archive (≈ 2.3 GB).</p>
+
+<h3>corrections.tar.gz — Corrected-record overlay (new in v2, 2 MB)</h3>
+<p>An authoritative overlay on <code>artifacts/</code>: the recovered measurement for architecture 07650, the remeasurement for 07651, and regenerated <code>error.log</code> / <code>meta.json</code> for the 115 mid-band (747–791 KB) failures so the raw artifacts agree with the single <code>infeasible</code> taxonomy. <strong>No measured hardware value is altered.</strong> Includes <code>apply_corrections.py</code> (one-command merge) and a <code>README.md</code> documenting the provenance of every corrected record.</p>
+
+<h3>index.json (588 KB) and dataset_example.py</h3>
+<p><code>index.json</code> maps every architecture index (0–15624) to the archive filename that contains it, enabling on-demand single-archive access. <code>dataset_example.py</code> is a minimal Python example (Python 3.8+, standard library only, with optional <code>pyarrow</code> for the parquet traces).</p>
+
+<h2>How to use this version</h2>
+<p><strong>Most users — the tabular data.</strong> Download and extract <code>export.tar.gz</code>; the CSVs already reflect every correction, so there is nothing to merge. Start from <code>export/README.md</code>.</p>
+
+<p><strong>Reproduce the paper's figures</strong> (export CSVs only, no archives needed):</p>
+<pre><code>git clone https://github.com/ankilab/NATS-Bench-MCU
+pip install matplotlib numpy
+python plot_from_export.py --data export/ --out figures/</code></pre>
+
+<p><strong>Access a single architecture's raw data</strong> (no need to decompress any archive; place the files from Zenodo in the repo's <code>dataset/</code> folder):</p>
+<pre><code>python dataset_example.py print 42
+python dataset_example.py export 42 --out ./evaluation_42/</code></pre>
+
+<p><strong>Build the fully corrected raw dataset.</strong> Extract the <code>artifacts_*.tar.gz</code> archives and <code>corrections.tar.gz</code> side by side, then merge the overlay into one corrected <code>artifacts/</code> tree:</p>
+<pre><code>python corrections/apply_corrections.py            # merges the overlay into artifacts/
+python corrections/apply_corrections.py --dry-run  # preview the changes first</code></pre>
+<p>The merge is idempotent and preserves each architecture's original INT8 model file. Equivalently, the analysis tooling applies the overlay on the fly, so you never have to merge manually to reproduce the paper.</p>
+
+<h2>Links</h2>
+<ul>
+  <li><strong>Code:</strong> <a href="https://github.com/ankilab/mimaas-api">https://github.com/ankilab/mimaas-api</a></li>
+  <li><strong>Dataset scripts &amp; examples:</strong> <a href="https://github.com/ankilab/NATS-Bench-MCU">https://github.com/ankilab/NATS-Bench-MCU</a> — see the <code>dataset/</code> folder for example scripts to access single evaluations and in-depth documentation.</li>
+</ul>
+
+<p><strong>License:</strong> CC BY 4.0</p>

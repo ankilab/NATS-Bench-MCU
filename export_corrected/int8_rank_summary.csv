@@ -1,0 +1,5 @@
+comparison,n,spearman_rho,kendall_tau,top10_overlap,top25_overlap
+a_fp32_int8_all,100,0.999,0.9821,9,25
+a_fp32_int8_nondegen,98,0.9989,0.9814,9,25
+b_nats_int8_all,100,0.9027,0.7364,4,21
+b_nats_int8_nondegen,98,0.8966,0.7255,4,21

@@ -1,0 +1,9 @@
+MIMaaS Request Error Log
+========================
+Timestamp:    2026-05-14 19:40:29
+Request ID:   16393
+Board:        nrf5340dk
+Failed Stage: precheck
+
+Error:
+Model file (747.0 KB) plus firmware overhead (277.6 KB) exceeds board flash (1024 KB). Build would fail due to flash overflow.

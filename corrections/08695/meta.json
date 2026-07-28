@@ -1,0 +1,10 @@
+{
+    "quantize": false,
+    "submitted_at": "2026-05-06T23-28-05-6280",
+    "status": "error",
+    "request_id": 9218,
+    "network_file_name": "nats_bench_model_08695_int8.tflite",
+    "board": "nrf5340dk_3",
+    "failed_stage": "precheck",
+    "error_message": "Model file (747.0 KB) plus firmware overhead (277.6 KB) exceeds board flash (1024 KB). Build would fail due to flash overflow."
+}

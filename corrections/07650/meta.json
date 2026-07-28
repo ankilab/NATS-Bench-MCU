@@ -1,0 +1,8 @@
+{
+    "quantize": false,
+    "submitted_at": "2026-05-04T16-12-51-8321",
+    "status": "done",
+    "request_id": 8173,
+    "network_file_name": "nats_bench_model_07650_int8.tflite",
+    "board": "nrf5340dk_1"
+}
